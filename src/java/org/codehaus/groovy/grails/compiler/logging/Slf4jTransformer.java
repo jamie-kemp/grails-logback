@@ -56,7 +56,11 @@ public class Slf4jTransformer implements AllArtefactClassInjector, Comparable<Cl
 						new ArgumentListExpression(new ConstantExpression(logName))));
 		classNode.addField(logVariable);
 	}
-
+	
+	public void performInjectionOnAnnotatedClass(SourceUnit source, ClassNode classNode) {
+		performInjection(source, null, classNode);
+	}
+	
 	/* (non-Javadoc)
 	 * @see org.codehaus.groovy.grails.compiler.injection.ClassInjector#performInjection(
 	 * 	org.codehaus.groovy.control.SourceUnit, org.codehaus.groovy.ast.ClassNode)

@@ -19,6 +19,7 @@ grails.project.dependency.resolution = {
 	String logbackVersion = '1.0.12'
 
 	dependencies {
+		compile "org.slf4j:jul-to-slf4j:1.7.5"
 		compile "ch.qos.logback:logback-classic:$logbackVersion", {
 			excludes 'dom4j', 'fest-assert', 'geronimo-jms_1.1_spec', 'greenmail', 'groovy-all', 'h2',
 			         'hsqldb', 'integration', 'janino', 'junit', 'log4j-over-slf4j', 'logback-core',
@@ -36,7 +37,7 @@ grails.project.dependency.resolution = {
 	}
 
 	plugins {
-		build(':release:2.2.1', ':rest-client-builder:1.0.3') {
+		build(':release:3.0.1') {
 			export = false
 		}
 
