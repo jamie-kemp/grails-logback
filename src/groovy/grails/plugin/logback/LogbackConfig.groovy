@@ -50,10 +50,12 @@ class LogbackConfig {
 		System.out.println("Configuration of url: " + configUrl)
 		
 		//Assume for now the configuration file will always be a local file reference
-		configuredExternally = new File(configUrl.toURI()).exists()
+		if(configUrl) {
+			configuredExternally = new File(configUrl.toURI()).exists()
+		}
 		
 		if(!configuredExternally) {
-			LogLog.info("Using internal configuration. Calling context.reset()")
+			LogLog.debug("Using internal configuration. Calling context.reset()")
 			reset()
 		}
 	}
@@ -66,6 +68,10 @@ class LogbackConfig {
 		if(!context.statusManager.getCopyOfStatusList().find({ return it instanceof GrailsLogbackStatusListener})) {
 			context.statusManager.add(new GrailsLogbackStatusListener())
 		}
+	}
+	
+	static void resetContext() {
+		LoggerFactory.getILoggerFactory().reset()
 	}
 
 	static void initialize(ConfigObject config) {

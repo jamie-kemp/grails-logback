@@ -27,7 +27,7 @@ class LogbackGrailsPlugin {
 
 	def doWithWebDescriptor = { xml ->
 
-		initLogging application
+		initLogging(application, true)
 		
 		def mappingElement = xml.'filter-mapping'
 		mappingElement = mappingElement[mappingElement.size() - 1]
@@ -47,7 +47,7 @@ class LogbackGrailsPlugin {
 
 		if (application.warDeployed) {
 			// only initialize here if deployed as a war since doWithWebDescriptor isn't called
-			initLogging application
+			initLogging(application, false)
 		}
 	}
 
@@ -55,10 +55,14 @@ class LogbackGrailsPlugin {
 		LogbackConfig.initialize event.source
 	}
 
-	private void initLogging(GrailsApplication application) {
+	private void initLogging(GrailsApplication application, boolean resetContext) {
 		if (!Metadata.current.getApplicationName()) {
 			// don't configure in the plugin
 			return
+		}
+		
+		if(resetContext) {
+			LogbackConfig.resetContext()
 		}
 
 		LogbackConfig.initialize application.config
