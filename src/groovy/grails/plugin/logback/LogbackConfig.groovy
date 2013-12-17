@@ -20,6 +20,7 @@ import ch.qos.logback.core.helpers.NOPAppender
 import ch.qos.logback.core.rolling.RollingFileAppender
 import ch.qos.logback.core.spi.ContextAware
 import ch.qos.logback.core.spi.LifeCycle
+import ch.qos.logback.core.joran.util.ConfigurationWatchListUtil
 
 /**
  * Encapsulates the configuration of Logback. Based on org.codehaus.groovy.grails.plugins.log4j.Log4jConfig.
@@ -37,26 +38,45 @@ class LogbackConfig {
 	protected ConfigObject config
 	protected List created = []
 	protected LoggerContext context = LoggerFactory.getILoggerFactory()
+	protected boolean configuredExternally = false;
 
 	protected static final String DEFAULT_ENCODER_PATTERN = '%d [%t] %-5p %c{2} %X - %m%n'
 
 	LogbackConfig(ConfigObject config) {
 		this.config = config
+		
+		//Find out if we have been configured by an external source
+		URL configUrl = ConfigurationWatchListUtil.getMainWatchURL(context)
+		System.out.println("Configuration of url: " + configUrl)
+		
+		//Assume for now the configuration file will always be a local file reference
+		configuredExternally = new File(configUrl.toURI()).exists()
+		
+		if(!configuredExternally) {
+			LogLog.info("Using internal configuration. Calling context.reset()")
+			reset()
+		}
 	}
 
 	void reset() {
 		context.reset()
-		context.statusManager.add new GrailsLogbackStatusListener()
+	}
+	
+	void injectGrailsContextListener() {
+		if(!context.statusManager.getCopyOfStatusList().find({ return it instanceof GrailsLogbackStatusListener})) {
+			context.statusManager.add(new GrailsLogbackStatusListener())
+		}
 	}
 
 	static void initialize(ConfigObject config) {
 		if (config == null) {
 			return
 		}
-
+				
 		Object logback = config.logback
 		LogbackConfig logbackConfig = new LogbackConfig(config)
-		logbackConfig.reset()
+		
+		logbackConfig.injectGrailsContextListener()
 
 		if (logback instanceof Closure) {
 			logbackConfig.configure((Closure<?>)logback)
@@ -196,35 +216,37 @@ class LogbackConfig {
 			}
 		}
 	}
-
+	
 	void configure(Closure callable) {
+	
+		if(!configuredExternally) {
+			ch.qos.logback.classic.Logger root = getRootLogger()
+			root.setLevel Level.ERROR
 
-		ch.qos.logback.classic.Logger root = getRootLogger()
-		root.setLevel Level.ERROR
+			Appender consoleAppender = createConsoleAppender()
+			appenders.stdout = consoleAppender
 
-		Appender consoleAppender = createConsoleAppender()
-		appenders.stdout = consoleAppender
+			error 'org.springframework', 'org.hibernate'
 
-		error 'org.springframework', 'org.hibernate'
+			callable.delegate = this
+			callable.resolveStrategy = Closure.DELEGATE_FIRST
 
-		callable.delegate = this
-		callable.resolveStrategy = Closure.DELEGATE_FIRST
+			try {
+				callable.call root
 
-		try {
-			callable.call root
-
-			if (!root.iteratorForAppenders().hasNext()) {
-				root.addAppender appenders.stdout
+				if (!root.iteratorForAppenders().hasNext()) {
+					root.addAppender appenders.stdout
+				}
+				ch.qos.logback.classic.Logger logger = LoggerFactory.getLogger('StackTrace')
+				logger.additive = false
+				Appender fileAppender = createFullstackTraceAppender()
+				if (!logger.iteratorForAppenders().hasNext()) {
+					logger.addAppender fileAppender
+				}
 			}
-			ch.qos.logback.classic.Logger logger = LoggerFactory.getLogger('StackTrace')
-			logger.additive = false
-			Appender fileAppender = createFullstackTraceAppender()
-			if (!logger.iteratorForAppenders().hasNext()) {
-				logger.addAppender fileAppender
+			catch (Exception e) {
+				LogLog.error "WARNING: Exception occured configuring Logback logging: $e.message", e
 			}
-		}
-		catch (Exception e) {
-			LogLog.error "WARNING: Exception occured configuring Logback logging: $e.message", e
 		}
 	}
 
